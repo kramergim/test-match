@@ -19,10 +19,10 @@ export default function Home() {
     date: new Date().toISOString().split('T')[0],
     fightDurationMinutes: 2,
     fightDurationSeconds: 0,
-    rotationTimeSeconds: 30,
+    rotationTimeSeconds: 60,
     startTime: '09:00',
     endTime: '12:00',
-    minRestBetweenFightsMinutes: 5,
+    minRestBetweenFightsMinutes: 2,
     areas: [
       {
         name: 'Area 1',
@@ -346,7 +346,7 @@ export default function Home() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Regional Karate Tournament"
+                    placeholder="Swiss Taekwondo Test Match"
                   />
                 </div>
                 <div>

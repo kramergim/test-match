@@ -451,7 +451,7 @@ export default function SchedulePage() {
   const selectedArea = event.areas.find(a => a.id === selectedAreaId);
 
   // Filter entries by selected area, groups, and search query
-  const filteredEntries = selectedArea
+  const filteredEntries = selectedArea && selectedAreaId
     ? (entriesByArea[selectedAreaId] || []).filter(entry => {
         // Filter by group
         if (!selectedGroupIds.has(entry.groupId)) return false;
@@ -600,36 +600,67 @@ export default function SchedulePage() {
               </div>
 
               {/* Group Filters */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm font-medium text-gray-700">Groups:</span>
+              <div className="flex items-center gap-3">
+                <label htmlFor="group-filter" className="text-sm font-medium text-gray-700">
+                  Filter by Group:
+                </label>
+                <div className="flex-1 max-w-md">
+                  <select
+                    id="group-filter"
+                    multiple
+                    size={Math.min(selectedArea.groups.length, 8)}
+                    value={Array.from(selectedGroupIds)}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
+                      setSelectedGroupIds(new Set(selected));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  >
+                    {selectedArea.groups.map((group) => {
+                      const groupEntriesCount = (entriesByArea[selectedAreaId!] || []).filter(e => e.groupId === group.id).length;
+                      return (
+                        <option key={group.id} value={group.id}>
+                          {group.name} ({groupEntriesCount} matches)
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
                 <button
                   onClick={() => toggleAllGroups(selectedAreaId!)}
-                  className="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
                 >
                   {selectedArea.groups.every(g => selectedGroupIds.has(g.id)) ? 'Deselect All' : 'Select All'}
                 </button>
-                {selectedArea.groups.map((group) => {
-                  const isSelected = selectedGroupIds.has(group.id);
-                  const groupEntriesCount = filteredEntries.filter(e => e.groupId === group.id).length;
-                  return (
-                    <button
-                      key={group.id}
-                      onClick={() => toggleGroupFilter(group.id)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                        isSelected
-                          ? 'bg-blue-600 text-white hover:bg-blue-700'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      }`}
-                    >
-                      {group.name}
-                      {isSelected && (
-                        <span className="ml-1.5 text-xs opacity-90">
-                          ({groupEntriesCount})
+              </div>
+
+              {/* Selected groups summary */}
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-600">
+                  Selected: {selectedGroupIds.size} of {selectedArea.groups.length} group{selectedArea.groups.length !== 1 ? 's' : ''}
+                </span>
+                {selectedGroupIds.size > 0 && selectedGroupIds.size < selectedArea.groups.length && (
+                  <div className="flex gap-1 flex-wrap">
+                    {selectedArea.groups
+                      .filter(g => selectedGroupIds.has(g.id))
+                      .map(group => (
+                        <span
+                          key={group.id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs"
+                        >
+                          {group.name}
+                          <button
+                            onClick={() => toggleGroupFilter(group.id)}
+                            className="hover:text-blue-900 font-bold"
+                            title="Remove filter"
+                          >
+                            ×
+                          </button>
                         </span>
-                      )}
-                    </button>
-                  );
-                })}
+                      ))
+                    }
+                  </div>
+                )}
               </div>
 
               {/* Results summary */}
