@@ -62,10 +62,6 @@ export default function ScoreEntryModal({
       errors.push('Scores must be whole numbers');
     }
 
-    if (num1 === num2) {
-      errors.push('Scores cannot be equal (draws not allowed)');
-    }
-
     return errors;
   };
 
@@ -93,7 +89,7 @@ export default function ScoreEntryModal({
 
     const num1 = parseInt(athlete1Score);
     const num2 = parseInt(athlete2Score);
-    const winnerId = num1 > num2 ? scheduleEntry.athlete1Id : scheduleEntry.athlete2Id;
+    const winnerId = num1 > num2 ? scheduleEntry.athlete1Id : num1 < num2 ? scheduleEntry.athlete2Id : null;
 
     const result: MatchResult = {
       matchId: scheduleEntry.matchId,
@@ -126,6 +122,7 @@ export default function ScoreEntryModal({
   const num1 = parseFloat(athlete1Score);
   const num2 = parseFloat(athlete2Score);
   const showWinner = !isNaN(num1) && !isNaN(num2) && num1 !== num2;
+  const isDraw = !isNaN(num1) && !isNaN(num2) && num1 === num2;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -187,7 +184,7 @@ export default function ScoreEntryModal({
             </div>
           </div>
 
-          {/* Winner indicator */}
+          {/* Winner/Draw indicator */}
           {showWinner && (
             <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
               <p className="text-sm font-medium text-green-800">
@@ -195,6 +192,13 @@ export default function ScoreEntryModal({
                 {num1 > num2
                   ? scheduleEntry.athlete1Name
                   : scheduleEntry.athlete2Name}
+              </p>
+            </div>
+          )}
+          {isDraw && (
+            <div className="mt-4 p-3 bg-gray-50 border border-gray-300 rounded-md">
+              <p className="text-sm font-medium text-gray-700">
+                Draw - Both athletes tied
               </p>
             </div>
           )}

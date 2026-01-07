@@ -35,6 +35,7 @@ export function calculateAthleteResults(
           matchesScheduled: 0,
           wins: 0,
           losses: 0,
+          draws: 0,
           totalPointsScored: 0,
           totalPointsAgainst: 0,
           winPercentage: 0,
@@ -68,6 +69,8 @@ export function calculateAthleteResults(
       athlete1.totalPointsAgainst += result.athlete2Score;
       if (result.winnerId === athlete1.athleteId) {
         athlete1.wins++;
+      } else if (result.winnerId === null) {
+        athlete1.draws++;
       } else {
         athlete1.losses++;
       }
@@ -78,6 +81,8 @@ export function calculateAthleteResults(
       athlete2.totalPointsAgainst += result.athlete1Score;
       if (result.winnerId === athlete2.athleteId) {
         athlete2.wins++;
+      } else if (result.winnerId === null) {
+        athlete2.draws++;
       } else {
         athlete2.losses++;
       }

@@ -18,7 +18,8 @@
       "Bash(git push:*)",
       "Bash(git rev-parse:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: Tournament scheduler with match results tracking\n\nFeatures:\n- Tournament schedule generation with TIME_BOXED algorithm\n- Match results entry with scores and winners\n- Real-time standings and rankings\n- Excel export with complete results and statistics\n- JSON export/import for data portability\n- Auto-save every 10 minutes \\(Excel format\\)\n- Session persistence with browser warnings\n- PDF and CSV export options\n- Active session detection and protection\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

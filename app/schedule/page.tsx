@@ -22,6 +22,11 @@ export default function SchedulePage() {
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
+  // Filters and navigation
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
   useEffect(() => {
     // Charger les données depuis sessionStorage
     const eventData = sessionStorage.getItem('event');
@@ -34,9 +39,25 @@ export default function SchedulePage() {
       return;
     }
 
-    setEvent(JSON.parse(eventData));
-    setSchedule(JSON.parse(scheduleData));
+    const parsedEvent = JSON.parse(eventData);
+    const parsedSchedule = JSON.parse(scheduleData);
+
+    setEvent(parsedEvent);
+    setSchedule(parsedSchedule);
     setWarnings(warningsData ? JSON.parse(warningsData) : []);
+
+    // Set default selected area to first area
+    if (parsedEvent.areas.length > 0) {
+      setSelectedAreaId(parsedEvent.areas[0].id);
+      // Select all groups by default
+      const allGroupIds = new Set<string>();
+      parsedEvent.areas.forEach((area: any) => {
+        area.groups.forEach((group: any) => {
+          allGroupIds.add(group.id);
+        });
+      });
+      setSelectedGroupIds(allGroupIds);
+    }
 
     // Load results if available
     if (resultsData) {
@@ -397,7 +418,56 @@ export default function SchedulePage() {
     );
   }
 
+  // Filter helpers
+  const toggleGroupFilter = (groupId: string) => {
+    const newSelected = new Set(selectedGroupIds);
+    if (newSelected.has(groupId)) {
+      newSelected.delete(groupId);
+    } else {
+      newSelected.add(groupId);
+    }
+    setSelectedGroupIds(newSelected);
+  };
+
+  const toggleAllGroups = (areaId: string) => {
+    const area = event.areas.find(a => a.id === areaId);
+    if (!area) return;
+
+    const areaGroupIds = area.groups.map(g => g.id);
+    const allSelected = areaGroupIds.every(id => selectedGroupIds.has(id));
+
+    const newSelected = new Set(selectedGroupIds);
+    if (allSelected) {
+      // Deselect all groups in this area
+      areaGroupIds.forEach(id => newSelected.delete(id));
+    } else {
+      // Select all groups in this area
+      areaGroupIds.forEach(id => newSelected.add(id));
+    }
+    setSelectedGroupIds(newSelected);
+  };
+
   const entriesByArea = groupBy(schedule.entries, 'areaId');
+  const selectedArea = event.areas.find(a => a.id === selectedAreaId);
+
+  // Filter entries by selected area, groups, and search query
+  const filteredEntries = selectedArea
+    ? (entriesByArea[selectedAreaId] || []).filter(entry => {
+        // Filter by group
+        if (!selectedGroupIds.has(entry.groupId)) return false;
+
+        // Filter by search query
+        if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase();
+          return (
+            entry.athlete1Name.toLowerCase().includes(query) ||
+            entry.athlete2Name.toLowerCase().includes(query)
+          );
+        }
+
+        return true;
+      })
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -478,21 +548,6 @@ export default function SchedulePage() {
               📗 Export Excel (with Results)
             </button>
             <button
-              onClick={handleExportJSON}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
-            >
-              💾 Export JSON
-            </button>
-            <label className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors cursor-pointer inline-block">
-              📥 Import Results
-              <input
-                type="file"
-                accept=".json"
-                className="hidden"
-                onChange={handleImportJSON}
-              />
-            </label>
-            <button
               onClick={handlePrint}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
@@ -507,18 +562,98 @@ export default function SchedulePage() {
           <p className="text-gray-600">{event.date}</p>
         </div>
 
-        {/* Tableaux par aire */}
-        {Object.entries(entriesByArea).map(([areaId, entries]) => {
-          const area = event.areas.find(a => a.id === areaId);
-          if (!area) return null;
+        {/* Area Tabs Navigation */}
+        <div className="bg-white shadow-sm rounded-lg mb-6 no-print">
+          <div className="border-b border-gray-200">
+            <nav className="flex overflow-x-auto">
+              {event.areas.map((area) => (
+                <button
+                  key={area.id}
+                  onClick={() => setSelectedAreaId(area.id)}
+                  className={`px-6 py-4 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${
+                    selectedAreaId === area.id
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  📍 {area.name}
+                  <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-gray-100">
+                    {entriesByArea[area.id]?.length || 0}
+                  </span>
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Group Filters & Search */}
+          {selectedArea && (
+            <div className="p-4 border-b border-gray-200">
+              {/* Search Bar */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="🔍 Search athletes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Group Filters */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="text-sm font-medium text-gray-700">Groups:</span>
+                <button
+                  onClick={() => toggleAllGroups(selectedAreaId!)}
+                  className="text-xs px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors"
+                >
+                  {selectedArea.groups.every(g => selectedGroupIds.has(g.id)) ? 'Deselect All' : 'Select All'}
+                </button>
+                {selectedArea.groups.map((group) => {
+                  const isSelected = selectedGroupIds.has(group.id);
+                  const groupEntriesCount = filteredEntries.filter(e => e.groupId === group.id).length;
+                  return (
+                    <button
+                      key={group.id}
+                      onClick={() => toggleGroupFilter(group.id)}
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-blue-600 text-white hover:bg-blue-700'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      {group.name}
+                      {isSelected && (
+                        <span className="ml-1.5 text-xs opacity-90">
+                          ({groupEntriesCount})
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Results summary */}
+              <div className="mt-3 text-sm text-gray-600">
+                Showing <strong>{filteredEntries.length}</strong> match{filteredEntries.length !== 1 ? 'es' : ''}
+                {searchQuery && ` matching "${searchQuery}"`}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Selected Area Content */}
+        {selectedArea && filteredEntries.length > 0 && (() => {
+          const entries = filteredEntries;
+          const area = selectedArea;
+          const areaId = selectedAreaId;
 
           const entriesByGroup = groupBy(entries, 'groupId');
           const areaStats = schedule.stats.areaStats.find(s => s.areaId === areaId);
 
-          // Calculer les statistiques de l'aire
+          // Calculer les statistiques de l'aire (filtered)
           const totalMatchesInArea = entries.length;
-          const totalGroupsInArea = area.groups.length;
-          const totalAthletesInArea = area.groups.reduce((sum, g) => sum + g.athletes.length, 0);
+          const selectedGroupsInArea = area.groups.filter(g => selectedGroupIds.has(g.id));
+          const totalAthletesInArea = selectedGroupsInArea.reduce((sum, g) => sum + g.athletes.length, 0);
           const firstMatch = entries[0];
           const lastMatch = entries[entries.length - 1];
 
@@ -547,7 +682,7 @@ export default function SchedulePage() {
                   </div>
                   <div className="bg-white/10 rounded-lg p-3">
                     <div className="text-sm opacity-90">Groups</div>
-                    <div className="text-2xl font-bold">{totalGroupsInArea}</div>
+                    <div className="text-2xl font-bold">{selectedGroupsInArea.length}</div>
                   </div>
                   <div className="bg-white/10 rounded-lg p-3">
                     <div className="text-sm opacity-90">Athletes</div>
@@ -654,7 +789,20 @@ export default function SchedulePage() {
               })}
             </div>
           );
-        })}
+        })()}
+
+        {/* Empty state when no matches found */}
+        {selectedArea && filteredEntries.length === 0 && (
+          <div className="bg-white shadow-sm rounded-lg p-12 text-center">
+            <div className="text-gray-400 text-6xl mb-4">🔍</div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No matches found</h3>
+            <p className="text-gray-600">
+              {searchQuery
+                ? `No matches found for "${searchQuery}"`
+                : 'Try selecting different groups or adjusting your filters'}
+            </p>
+          </div>
+        )}
 
         {/* Rest statistics */}
         <div className="bg-white shadow-sm rounded-lg p-6 page-break">

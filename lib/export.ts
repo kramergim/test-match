@@ -475,7 +475,9 @@ export function exportToExcel(
       entry.athlete2Name,
       result ? `${result.athlete1Score}-${result.athlete2Score}` : '',
       result
-        ? result.winnerId === entry.athlete1Id
+        ? result.winnerId === null
+          ? 'Draw'
+          : result.winnerId === entry.athlete1Id
           ? entry.athlete1Name
           : entry.athlete2Name
         : '',
@@ -516,6 +518,7 @@ export function exportToExcel(
         'Athlete',
         'Fights (Played/Scheduled)',
         'Wins',
+        'Draws',
         'Losses',
         'Win %',
         'Points Scored',
@@ -530,6 +533,7 @@ export function exportToExcel(
         athlete.athleteName,
         `${athlete.matchesPlayed}/${athlete.matchesScheduled}`,
         athlete.wins,
+        athlete.draws,
         athlete.losses,
         `${athlete.winPercentage.toFixed(1)}%`,
         athlete.totalPointsScored,
@@ -547,6 +551,7 @@ export function exportToExcel(
       { wch: 20 }, // Athlete
       { wch: 22 }, // Fights
       { wch: 6 },  // Wins
+      { wch: 6 },  // Draws
       { wch: 8 },  // Losses
       { wch: 8 },  // Win %
       { wch: 14 }, // Points Scored

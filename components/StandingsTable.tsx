@@ -50,7 +50,7 @@ export default function StandingsTable({ standing }: StandingsTableProps) {
                 Fights
               </th>
               <th className="border border-gray-300 px-3 py-2 text-center text-sm font-semibold">
-                W-L
+                W-D-L
               </th>
               <th className="border border-gray-300 px-3 py-2 text-center text-sm font-semibold">
                 Win %
@@ -85,7 +85,7 @@ export default function StandingsTable({ standing }: StandingsTableProps) {
                   {athlete.matchesPlayed}/{athlete.matchesScheduled}
                 </td>
                 <td className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">
-                  {athlete.wins}-{athlete.losses}
+                  {athlete.wins}-{athlete.draws}-{athlete.losses}
                 </td>
                 <td className="border border-gray-300 px-3 py-2 text-center text-sm">
                   {athlete.winPercentage.toFixed(0)}%

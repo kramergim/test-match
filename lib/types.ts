@@ -51,7 +51,7 @@ export interface MatchResult {
   matchId: string; // References Match.id or ScheduleEntry.matchId
   athlete1Score: number;
   athlete2Score: number;
-  winnerId: string; // athleteId of the winner
+  winnerId: string | null; // athleteId of the winner, null for draws
   recordedAt: string; // ISO timestamp
 }
 
@@ -69,6 +69,7 @@ export interface AthleteResult {
   matchesScheduled: number;
   wins: number;
   losses: number;
+  draws: number;
   totalPointsScored: number;
   totalPointsAgainst: number;
   winPercentage: number; // 0-100
