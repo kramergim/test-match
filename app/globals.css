@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer utilities {
+  .print-only {
+    @apply hidden;
+  }
+
+  .no-print {
+    @apply block;
+  }
+}
+
+@media print {
+  .print-only {
+    @apply block;
+  }
+
+  .no-print {
+    @apply hidden !important;
+  }
+
+  body {
+    @apply bg-white;
+  }
+
+  .page-break {
+    page-break-after: always;
+  }
+
+  table {
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+}
