@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Event, Schedule, Warning, ScheduleEntry, MatchResult, GroupStandings } from '@/lib/types';
 import { groupBy, formatDuration, getWarningSeverityClass } from '@/lib/utils';
@@ -26,6 +26,8 @@ export default function SchedulePage() {
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Charger les données depuis sessionStorage
@@ -84,6 +86,23 @@ export default function SchedulePage() {
       setGroupStandings(standings);
     }
   }, [results, event, schedule]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsGroupDropdownOpen(false);
+      }
+    };
+
+    if (isGroupDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isGroupDropdownOpen]);
 
   // Auto-save every 10 minutes
   useEffect(() => {
@@ -312,12 +331,26 @@ export default function SchedulePage() {
     }
     .checkbox {
       display: inline-block;
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       border: 2px solid #94a3b8;
       border-radius: 3px;
-      margin-right: 8px;
       vertical-align: middle;
+      position: relative;
+    }
+    .checkbox.completed {
+      background-color: #22c55e;
+      border-color: #16a34a;
+    }
+    .checkbox.completed::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-weight: bold;
+      font-size: 12px;
     }
     .footer {
       margin-top: 30px;
@@ -375,13 +408,36 @@ export default function SchedulePage() {
     <tbody>
       ${entries.map(entry => {
         const group = area.groups.find(g => g.id === entry.groupId);
+        const result = results.get(entry.matchId);
+        const hasResult = !!result;
+
+        let athlete1Display = entry.athlete1Name;
+        let athlete2Display = entry.athlete2Name;
+
+        if (result) {
+          if (result.winnerId === entry.athlete1Id) {
+            athlete1Display = `<strong style="background-color: #22c55e; color: white; padding: 2px 6px; border-radius: 4px;">🏆 ${entry.athlete1Name}</strong>`;
+            athlete2Display = entry.athlete2Name;
+          } else if (result.winnerId === entry.athlete2Id) {
+            athlete1Display = entry.athlete1Name;
+            athlete2Display = `<strong style="background-color: #22c55e; color: white; padding: 2px 6px; border-radius: 4px;">🏆 ${entry.athlete2Name}</strong>`;
+          } else {
+            // Draw
+            athlete1Display = `<strong>${entry.athlete1Name}</strong>`;
+            athlete2Display = `<strong>${entry.athlete2Name}</strong>`;
+          }
+        } else {
+          athlete1Display = `<strong>${entry.athlete1Name}</strong>`;
+          athlete2Display = `<strong>${entry.athlete2Name}</strong>`;
+        }
+
         return `
           <tr>
             <td class="num">${entry.sequenceNumber}</td>
             <td class="time">${entry.scheduledTime}</td>
             <td class="category">${group?.name || ''}</td>
-            <td><strong>${entry.athlete1Name}</strong> vs <strong>${entry.athlete2Name}</strong></td>
-            <td style="text-align: center;"><span class="checkbox"></span></td>
+            <td>${athlete1Display} vs ${athlete2Display}</td>
+            <td style="text-align: center;"><span class="checkbox ${hasResult ? 'completed' : ''}"></span></td>
           </tr>
         `;
       }).join('')}
@@ -600,67 +656,117 @@ export default function SchedulePage() {
               </div>
 
               {/* Group Filters */}
-              <div className="flex items-center gap-3">
-                <label htmlFor="group-filter" className="text-sm font-medium text-gray-700">
-                  Filter by Group:
-                </label>
-                <div className="flex-1 max-w-md">
-                  <select
-                    id="group-filter"
-                    multiple
-                    size={Math.min(selectedArea.groups.length, 8)}
-                    value={Array.from(selectedGroupIds)}
-                    onChange={(e) => {
-                      const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
-                      setSelectedGroupIds(new Set(selected));
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <span className="text-blue-600">🎯</span>
+                    Filter by Group
+                  </label>
+                  <button
+                    onClick={() => toggleAllGroups(selectedAreaId!)}
+                    className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 transition-colors"
                   >
-                    {selectedArea.groups.map((group) => {
-                      const groupEntriesCount = (entriesByArea[selectedAreaId!] || []).filter(e => e.groupId === group.id).length;
-                      return (
-                        <option key={group.id} value={group.id}>
-                          {group.name} ({groupEntriesCount} matches)
-                        </option>
-                      );
-                    })}
-                  </select>
+                    {selectedArea.groups.every(g => selectedGroupIds.has(g.id)) ? '✓ Deselect All' : 'Select All'}
+                  </button>
                 </div>
-                <button
-                  onClick={() => toggleAllGroups(selectedAreaId!)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors text-sm font-medium whitespace-nowrap"
-                >
-                  {selectedArea.groups.every(g => selectedGroupIds.has(g.id)) ? 'Deselect All' : 'Select All'}
-                </button>
-              </div>
 
-              {/* Selected groups summary */}
-              <div className="mt-2 flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-gray-600">
-                  Selected: {selectedGroupIds.size} of {selectedArea.groups.length} group{selectedArea.groups.length !== 1 ? 's' : ''}
-                </span>
-                {selectedGroupIds.size > 0 && selectedGroupIds.size < selectedArea.groups.length && (
-                  <div className="flex gap-1 flex-wrap">
-                    {selectedArea.groups
-                      .filter(g => selectedGroupIds.has(g.id))
-                      .map(group => (
-                        <span
-                          key={group.id}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs"
-                        >
-                          {group.name}
-                          <button
-                            onClick={() => toggleGroupFilter(group.id)}
-                            className="hover:text-blue-900 font-bold"
-                            title="Remove filter"
-                          >
-                            ×
-                          </button>
+                {/* Custom Dropdown with Checkboxes */}
+                <div ref={dropdownRef} className="relative mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsGroupDropdownOpen(!isGroupDropdownOpen)}
+                    className="w-full px-4 py-3 text-left bg-white border-2 border-gray-300 rounded-lg hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors flex items-center justify-between"
+                  >
+                    <span className="text-sm text-gray-700">
+                      {selectedGroupIds.size === 0 && 'Select groups...'}
+                      {selectedGroupIds.size === selectedArea.groups.length && 'All groups selected'}
+                      {selectedGroupIds.size > 0 && selectedGroupIds.size < selectedArea.groups.length && (
+                        <span>
+                          {selectedGroupIds.size} group{selectedGroupIds.size !== 1 ? 's' : ''} selected
                         </span>
-                      ))
-                    }
-                  </div>
-                )}
+                      )}
+                    </span>
+                    <svg
+                      className={`w-5 h-5 text-gray-400 transition-transform ${isGroupDropdownOpen ? 'transform rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Dropdown Panel */}
+                  {isGroupDropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-300 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+                      {selectedArea.groups.map((group) => {
+                        const groupEntriesCount = (entriesByArea[selectedAreaId!] || []).filter(e => e.groupId === group.id).length;
+                        const isSelected = selectedGroupIds.has(group.id);
+                        return (
+                          <label
+                            key={group.id}
+                            className="flex items-center px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleGroupFilter(group.id)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                            />
+                            <span className="ml-3 text-sm flex-1">
+                              <span className={`${isSelected ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                                {group.name}
+                              </span>
+                              <span className="text-gray-500 ml-2">
+                                ({groupEntriesCount} match{groupEntriesCount !== 1 ? 'es' : ''})
+                              </span>
+                            </span>
+                            {isSelected && (
+                              <span className="ml-2 text-blue-600 font-bold">✓</span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selected groups summary */}
+                <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                  <span className="text-xs font-medium text-gray-600">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 rounded-md">
+                      <span className="font-bold">{selectedGroupIds.size}</span>
+                      <span>of {selectedArea.groups.length} selected</span>
+                    </span>
+                  </span>
+                  {selectedGroupIds.size > 0 && selectedGroupIds.size < selectedArea.groups.length && (
+                    <div className="flex gap-1 flex-wrap">
+                      {selectedArea.groups
+                        .filter(g => selectedGroupIds.has(g.id))
+                        .slice(0, 5)
+                        .map(group => (
+                          <span
+                            key={group.id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-600 text-white rounded text-xs font-medium"
+                          >
+                            {group.name}
+                            <button
+                              onClick={() => toggleGroupFilter(group.id)}
+                              className="hover:text-blue-200 font-bold ml-0.5"
+                              title="Remove filter"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      {selectedArea.groups.filter(g => selectedGroupIds.has(g.id)).length > 5 && (
+                        <span className="inline-flex items-center px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-xs font-medium">
+                          +{selectedArea.groups.filter(g => selectedGroupIds.has(g.id)).length - 5} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Results summary */}
